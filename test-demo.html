@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDK 重试队列测试演示</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        h2 {
+            color: #666;
+            font-size: 18px;
+            margin-top: 24px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 8px;
+        }
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 16px 0;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+        }
+        .btn-success {
+            background: #34C759;
+            color: white;
+        }
+        .btn-danger {
+            background: #FF3B30;
+            color: white;
+        }
+        .btn-warning {
+            background: #FF9500;
+            color: white;
+        }
+        .btn-secondary {
+            background: #8E8E93;
+            color: white;
+        }
+        .status {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 16px;
+            margin: 16px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .status pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 4px;
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .log-entry {
+            margin: 4px 0;
+            padding: 4px;
+        }
+        .log-entry.success {
+            color: #4EC9B0;
+        }
+        .log-entry.error {
+            color: #F48771;
+        }
+        .log-entry.info {
+            color: #9CDCFE;
+        }
+        .log-entry.warning {
+            color: #CE9178;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .badge-success {
+            background: #34C759;
+            color: white;
+        }
+        .badge-error {
+            background: #FF3B30;
+            color: white;
+        }
+        .badge-info {
+            background: #007AFF;
+            color: white;
+        }
+        .badge-warning {
+            background: #FF9500;
+            color: white;
+        }
+        .info-box {
+            background: #E3F2FD;
+            border-left: 4px solid #2196F3;
+            padding: 12px 16px;
+            margin: 16px 0;
+            border-radius: 4px;
+        }
+        .network-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .network-online {
+            background: #D1F2EB;
+            color: #0E6655;
+        }
+        .network-offline {
+            background: #FADBD8;
+            color: #922B21;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 SDK 重试队列测试演示</h1>
+        
+        <div class="info-box">
+            <strong>说明：</strong> 这是一个交互式演示，用于测试 SDK 重试队列的各种功能。
+            你可以模拟网络状态、发送成功/失败的请求，观察队列的行为。
+        </div>
+
+        <h2>网络状态控制</h2>
+        <div class="button-group">
+            <button class="btn-success" onclick="setOnline()">✅ 设为在线</button>
+            <button class="btn-danger" onclick="setOffline()">❌ 设为离线</button>
+            <span style="margin-left: 12px; line-height: 40px;">
+                当前状态: <span id="networkStatus" class="network-status network-online">在线</span>
+            </span>
+        </div>
+
+        <h2>发送测试请求</h2>
+        <div class="button-group">
+            <button class="btn-primary" onclick="sendSuccessRequest()">✅ 发送成功请求</button>
+            <button class="btn-danger" onclick="sendFailRequest()">❌ 发送失败请求</button>
+            <button class="btn-warning" onclick="sendBatch()">📦 批量发送10个失败请求</button>
+        </div>
+
+        <h2>队列操作</h2>
+        <div class="button-group">
+            <button class="btn-primary" onclick="updateStatus()">🔄 刷新状态</button>
+            <button class="btn-warning" onclick="flushQueue()">⚡ 手动触发补发</button>
+            <button class="btn-danger" onclick="clearQueue()">🗑️ 清空队列</button>
+            <button class="btn-secondary" onclick="clearLog()">🧹 清空日志</button>
+        </div>
+
+        <h2>队列状态</h2>
+        <div class="status">
+            <pre id="queueStatus">加载中...</pre>
+        </div>
+
+        <h2>操作日志</h2>
+        <div class="log" id="logContainer">
+            <div class="log-entry info">等待操作...</div>
+        </div>
+    </div>
+
+    <script>
+        // 简化版 RetryQueue 实现（用于演示）
+        class SimpleRetryQueue {
+            constructor() {
+                this.queue = this.loadFromStorage();
+                this.storageKey = 'demo_retry_queue';
+                this.maxRetries = 3;
+                this.isProcessing = false;
+                
+                // 监听网络状态
+                window.addEventListener('online', () => {
+                    this.log('网络已恢复', 'success');
+                    this.processQueue();
+                });
+            }
+
+            loadFromStorage() {
+                try {
+                    const data = localStorage.getItem('demo_retry_queue');
+                    return data ? JSON.parse(data) : [];
+                } catch {
+                    return [];
+                }
+            }
+
+            saveToStorage() {
+                localStorage.setItem(this.storageKey, JSON.stringify(this.queue));
+            }
+
+            enqueue(payload) {
+                const item = {
+                    id: Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    payload,
+                    retryCount: 0,
+                    createdAt: Date.now(),
+                };
+                this.queue.push(item);
+                this.saveToStorage();
+                this.log(`请求已加入队列 (ID: ${item.id.substr(0, 16)}...)`, 'warning');
+                return item;
+            }
+
+            async processQueue() {
+                if (this.isProcessing || this.queue.length === 0) {
+                    return;
+                }
+
+                if (!navigator.onLine) {
+                    this.log('网络离线，跳过队列处理', 'warning');
+                    return;
+                }
+
+                this.isProcessing = true;
+                this.log(`开始处理队列 (${this.queue.length} 个请求)`, 'info');
+
+                const promises = this.queue.slice(0, 3).map(item => this.retryItem(item));
+                await Promise.allSettled(promises);
+
+                this.isProcessing = false;
+                this.saveToStorage();
+                updateStatus();
+            }
+
+            async retryItem(item) {
+                this.log(`重试请求 ${item.id.substr(0, 16)}... (第 ${item.retryCount + 1} 次)`, 'info');
+
+                try {
+                    const response = await fetch(item.payload.url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(item.payload.body),
+                    });
+
+                    if (response.ok) {
+                        this.removeItem(item.id);
+                        this.log(`✅ 请求成功 ${item.id.substr(0, 16)}...`, 'success');
+                    } else {
+                        this.incrementRetry(item.id);
+                        this.log(`❌ 请求失败 ${item.id.substr(0, 16)}... (状态: ${response.status})`, 'error');
+                    }
+                } catch (error) {
+                    this.incrementRetry(item.id);
+                    this.log(`❌ 请求异常 ${item.id.substr(0, 16)}... (${error.message})`, 'error');
+                }
+            }
+
+            removeItem(id) {
+                const index = this.queue.findIndex(item => item.id === id);
+                if (index !== -1) {
+                    this.queue.splice(index, 1);
+                }
+            }
+
+            incrementRetry(id) {
+                const item = this.queue.find(item => item.id === id);
+                if (item) {
+                    item.retryCount++;
+                    if (item.retryCount >= this.maxRetries) {
+                        this.removeItem(id);
+                        this.log(`放弃请求 ${id.substr(0, 16)}... (已达最大重试次数)`, 'error');
+                    }
+                }
+            }
+
+            getStatus() {
+                return {
+                    queueSize: this.queue.length,
+                    isProcessing: this.isProcessing,
+                    items: this.queue.map(item => ({
+                        id: item.id.substr(0, 20) + '...',
+                        url: item.payload.url,
+                        retryCount: item.retryCount,
+                        age: Math.floor((Date.now() - item.createdAt) / 1000) + 's',
+                    })),
+                };
+            }
+
+            clear() {
+                this.queue = [];
+                this.saveToStorage();
+                this.log('队列已清空', 'info');
+            }
+
+            log(message, type = 'info') {
+                const logContainer = document.getElementById('logContainer');
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                
+                const time = new Date().toLocaleTimeString();
+                const badge = `<span class="badge badge-${type}">${type.toUpperCase()}</span>`;
+                entry.innerHTML = `[${time}] ${badge} ${message}`;
+                
+                logContainer.appendChild(entry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+        }
+
+        // 全局实例
+        const retryQueue = new SimpleRetryQueue();
+
+        // 更新网络状态显示
+        function updateNetworkStatus() {
+            const statusEl = document.getElementById('networkStatus');
+            if (navigator.onLine) {
+                statusEl.textContent = '在线';
+                statusEl.className = 'network-status network-online';
+            } else {
+                statusEl.textContent = '离线';
+                statusEl.className = 'network-status network-offline';
+            }
+        }
+
+        // 设置在线
+        function setOnline() {
+            Object.defineProperty(navigator, 'onLine', {
+                writable: true,
+                configurable: true,
+                value: true,
+            });
+            updateNetworkStatus();
+            window.dispatchEvent(new Event('online'));
+            retryQueue.log('已切换到在线模式', 'success');
+        }
+
+        // 设置离线
+        function setOffline() {
+            Object.defineProperty(navigator, 'onLine', {
+                writable: true,
+                configurable: true,
+                value: false,
+            });
+            updateNetworkStatus();
+            retryQueue.log('已切换到离线模式', 'warning');
+        }
+
+        // 发送成功请求
+        async function sendSuccessRequest() {
+            retryQueue.log('发送成功请求到 httpbin.org...', 'info');
+            try {
+                const response = await fetch('https://httpbin.org/post', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event: 'test_success', timestamp: Date.now() }),
+                });
+                
+                if (response.ok) {
+                    retryQueue.log('✅ 请求成功！', 'success');
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                retryQueue.log(`❌ 请求失败: ${error.message}`, 'error');
+            }
+            updateStatus();
+        }
+
+        // 发送失败请求
+        async function sendFailRequest() {
+            retryQueue.log('发送失败请求（将加入队列）...', 'info');
+            
+            // 模拟失败后加入队列
+            retryQueue.enqueue({
+                url: 'https://httpbin.org/status/500', // 故意返回 500
+                body: { event: 'test_fail', timestamp: Date.now() },
+            });
+            
+            updateStatus();
+        }
+
+        // 批量发送
+        function sendBatch() {
+            retryQueue.log('批量添加 10 个失败请求到队列...', 'info');
+            for (let i = 0; i < 10; i++) {
+                retryQueue.enqueue({
+                    url: 'https://httpbin.org/status/500',
+                    body: { event: `batch_${i}`, timestamp: Date.now() },
+                });
+            }
+            updateStatus();
+        }
+
+        // 更新状态
+        function updateStatus() {
+            const status = retryQueue.getStatus();
+            const statusEl = document.getElementById('queueStatus');
+            statusEl.textContent = JSON.stringify(status, null, 2);
+        }
+
+        // 手动触发补发
+        async function flushQueue() {
+            retryQueue.log('手动触发队列补发...', 'info');
+            await retryQueue.processQueue();
+        }
+
+        // 清空队列
+        function clearQueue() {
+            if (confirm('确定要清空队列吗？')) {
+                retryQueue.clear();
+                updateStatus();
+            }
+        }
+
+        // 清空日志
+        function clearLog() {
+            const logContainer = document.getElementById('logContainer');
+            logContainer.innerHTML = '<div class="log-entry info">日志已清空</div>';
+        }
+
+        // 初始化
+        updateNetworkStatus();
+        updateStatus();
+        retryQueue.log('演示页面已加载，可以开始测试', 'success');
+    </script>
+</body>
+</html>
+
+
+
