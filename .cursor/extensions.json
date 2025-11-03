@@ -1,0 +1,21 @@
+{
+  // Cursor 独立扩展推荐列表
+  // 这个文件只影响 Cursor，不会与 VSCode 共享
+  "recommendations": [
+    // 基础扩展
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    
+    // TypeScript 支持
+    "ms-vscode.vscode-typescript-next",
+    
+    // 其他常用扩展（根据你的需求添加）
+    // "bradlc.vscode-tailwindcss",
+    // "prisma.prisma"
+  ],
+  // 不推荐的扩展（这些可能在 VSCode 中安装但在 Cursor 中不需要）
+  "unwantedRecommendations": [
+    // 如果某些扩展与 VSCode 冲突，可以在这里列出
+  ]
+}
+

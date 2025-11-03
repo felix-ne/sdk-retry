@@ -1,0 +1,44 @@
+{
+  // Cursor 独立配置文件
+  // 这些设置只影响 Cursor，不会与 VSCode 共享
+  
+  // 禁用 VSCode 扩展同步
+  "settingsSync.enabled": false,
+  
+  // Cursor 特定设置
+  "cursor.cpp.disabledLanguages": [],
+  "cursor.chat.enabled": true,
+  
+  // 编辑器设置（独立于 VSCode）
+  "editor.fontFamily": "Monaco, 'Courier New', monospace",
+  "editor.fontSize": 14,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  
+  // 文件关联（仅 Cursor）
+  "files.associations": {
+    "*.ts": "typescript",
+    "*.tsx": "typescriptreact"
+  },
+  
+  // 排除 VSCode 相关文件
+  "files.exclude": {
+    "**/.vscode": true
+  },
+  
+  // 搜索排除
+  "search.exclude": {
+    "**/.vscode": true,
+    "**/node_modules": true,
+    "**/dist": true
+  },
+  
+  // 仅使用 Cursor 推荐的扩展
+  "extensions.ignoreRecommendations": false,
+  "extensions.autoCheckUpdates": true,
+  
+  // 工作区设置
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}
+

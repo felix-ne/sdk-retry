@@ -10,8 +10,6 @@
 import { QueueItem, RequestPayload, RetryQueueOptions, QueueStatus, Priority } from './types';
 import { StorageAdapter } from './storage-adapter';
 
-export * from './types';
-
 /** 优先级权重（用于排序） */
 const PRIORITY_WEIGHT: Record<Priority, number> = {
   low: 1,
@@ -94,6 +92,19 @@ export class RetryQueue {
         this.processQueue();
       }
     });
+
+    // Page Lifecycle API - 页面被冻结前保存（更可靠）
+    // 在移动端浏览器中，freeze 比 beforeunload 更可靠
+    document.addEventListener('freeze', () => {
+      this.log('Page frozen, saving queue');
+      this.storage.save(this.queue);
+    }, { capture: true });
+
+    // 页面恢复时重试
+    document.addEventListener('resume', () => {
+      this.log('Page resumed, processing queue');
+      this.processQueue();
+    }, { capture: true });
   }
 
   /**
@@ -246,7 +257,7 @@ export class RetryQueue {
       } finally {
         this.isProcessing = false;
         this.currentConcurrent = 0;
-        this.storage.save(this.queue);
+        this.storage.save(this.queue); // 保存处理后的状态
         this.releaseLock(); // 释放锁
         this.processingPromise = null; // 清除 promise 跟踪
         this.log('processQueue completed', { queueSize: this.queue.length });
@@ -390,6 +401,8 @@ export class RetryQueue {
     const index = this.queue.findIndex((item) => item.id === id);
     if (index !== -1) {
       this.queue.splice(index, 1);
+      // 立即保存，避免丢失状态
+      this.storage.save(this.queue);
     }
   }
 
@@ -406,6 +419,9 @@ export class RetryQueue {
       if (item.retryCount >= this.options.maxRetries) {
         this.removeItem(id);
         this.log('Item abandoned after max retries', { id, retryCount: item.retryCount });
+      } else {
+        // 立即保存，避免丢失重试计数
+        this.storage.save(this.queue);
       }
     }
   }
