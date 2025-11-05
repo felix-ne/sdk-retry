@@ -93,8 +93,6 @@ export class RetryQueue {
 
     const priority = payload.priority ?? 'normal';
 
-    this.log(`before enqueue item`);
-
     const item: QueueItem = {
       id: this.generateId(),
       payload,
@@ -238,6 +236,13 @@ export class RetryQueue {
           this.log('Batch completed', {
             queueSize: this.queue.length,
             processed: promises.length,
+          });
+        }
+
+        // 如果因为安全计数器退出，记录警告
+        if (safeCount === 0 && this.queue.length > 0) {
+          this.log('WARNING: Processing stopped due to safe count limit', {
+            remainingQueueSize: this.queue.length,
           });
         }
 
@@ -541,6 +546,7 @@ export class RetryQueue {
 
     // 只处理高优先级和 normal 优先级的请求，限制数量
     let attemptedCount = 0;
+    const itemsToUpdate: string[] = []; // 需要更新 lastRetryTime 的 item IDs
 
     for (const item of sortedQueue) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -605,6 +611,8 @@ export class RetryQueue {
         const queued = navigator.sendBeacon(url, blob);
 
         attemptedCount++;
+        // 记录需要更新 lastRetryTime 的 item（无论成功失败都更新，避免重复过高）
+        itemsToUpdate.push(item.id);
 
         if (queued) {
           this.log(
@@ -626,6 +634,8 @@ export class RetryQueue {
           );
         }
       } catch (error) {
+        // 即使出错，也更新 lastRetryTime，避免下次立即重试
+        itemsToUpdate.push(item.id);
         this.log(
           'Error sending item via sendBeacon (will retry on next page load)',
           {
@@ -633,6 +643,25 @@ export class RetryQueue {
             error,
           }
         );
+      }
+    }
+
+    // 统一更新所有尝试发送的 item 的 lastRetryTime（避免重复过高）
+    // 注意：不增加 retryCount，因为我们不知道实际结果
+    // 如果服务器确实收到了，正常流程会成功移除
+    // 如果服务器没收到，下次重试时会正常增加 retryCount
+    if (itemsToUpdate.length > 0) {
+      const now = Date.now();
+      let updated = false;
+      for (const itemId of itemsToUpdate) {
+        const queueItem = this.queue.find((i) => i.id === itemId);
+        if (queueItem) {
+          queueItem.lastRetryTime = now;
+          updated = true;
+        }
+      }
+      if (updated) {
+        this.storage.save(this.queue); // 统一保存一次，避免多次保存
       }
     }
 
