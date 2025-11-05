@@ -28,12 +28,11 @@ export class AnalyticsSDK {
 
     // 初始化重试队列
     this.retryQueue = new RetryQueue({
-      maxQueueSize: 100,
-      maxRetries: 5,
-      expireTime: 24 * 60 * 60 * 1000, // 24小时
-      retryInterval: 30 * 1000, // 30秒
-      maxConcurrent: 3,
-      storagePrefix: 'analytics_sdk_',
+      maxQueueSize: 20, // 最大缓存数量
+      maxRetries: 3, // 缓存数据重试次数
+      expireTime: 30 * 24 * 60 * 60 * 1000, // 缓存有效期 1个月
+      maxConcurrent: 1, // 最大并发数：1
+      storagePrefix: '__k_rq_', // 缓存标识前缀
       debug: this.options.debug,
     });
 
@@ -44,7 +43,7 @@ export class AnalyticsSDK {
    * 上报事件（核心方法）
    */
   async track(
-    eventName: string, 
+    eventName: string,
     properties?: Record<string, any>,
     priority?: 'high' | 'normal' | 'low'
   ): Promise<void> {
@@ -98,21 +97,21 @@ export class AnalyticsSDK {
         this.log('Client error, not retrying', { status: response.status });
         return;
       }
-
     } catch (error) {
       this.log('Request failed', { url, error, retryCount });
 
       // 达到最大重试次数
       if (retryCount >= this.options.maxRetries) {
         this.log('Max retries reached, adding to queue');
-        
+
         // 保存到重试队列（带优先级）
         if (this.options.enableRetryQueue) {
           this.retryQueue.enqueue({
             url,
             method: 'POST',
             headers,
-            body: data,
+            data,
+            timestamp: Date.now(),
             priority, // 传递优先级
           });
         }
@@ -192,20 +191,32 @@ sdk.track('page_view', {
 });
 
 // 3. 使用优先级（重要事件使用 high 优先级）
-sdk.track('purchase_completed', {
-  orderId: '12345',
-  amount: 99.99,
-}, 'high'); // 高优先级，队列满时不会被淘汰
+sdk.track(
+  'purchase_completed',
+  {
+    orderId: '12345',
+    amount: 99.99,
+  },
+  'high'
+); // 高优先级，队列满时不会被淘汰
 
-sdk.track('button_click', {
-  buttonId: 'submit-btn',
-  text: 'Submit',
-}, 'normal'); // 普通优先级（默认）
+sdk.track(
+  'button_click',
+  {
+    buttonId: 'submit-btn',
+    text: 'Submit',
+  },
+  'normal'
+); // 普通优先级（默认）
 
-sdk.track('mouse_move', {
-  x: 100,
-  y: 200,
-}, 'low'); // 低优先级，队列满时优先淘汰
+sdk.track(
+  'mouse_move',
+  {
+    x: 100,
+    y: 200,
+  },
+  'low'
+); // 低优先级，队列满时优先淘汰
 
 // 3. 查看队列状态
 console.log('Queue status:', sdk.getQueueStatus());
@@ -217,4 +228,3 @@ sdk.flushQueue();
 window.addEventListener('beforeunload', () => {
   sdk.destroy();
 });
-

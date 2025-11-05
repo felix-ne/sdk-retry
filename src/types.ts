@@ -5,14 +5,31 @@
 /** 请求优先级 */
 export type Priority = 'high' | 'normal' | 'low';
 
-export interface RequestPayload {
+export interface RequestOptions {
   url: string;
   method?: string;
-  headers?: Record<string, string>;
-  body?: any;
+  headers?: Record<string, string> | undefined;
+  data?: any;
+}
+
+export type RequestPayload = RequestOptions & {
+  priority: Priority;
   timestamp: number;
-  /** 请求优先级，默认 normal */
-  priority?: Priority;
+  updateSendInfo?: (params: any, data: any) => any;
+};
+
+/**
+ * 补充上报方式
+ */
+export enum IAdditionalMethod {
+  try_when_pixel_success = 'try_when_pixel_success', // todo：pixel上报成功时进行尝试
+  visibilitychange_show = 'visibilitychange_show', // 可见变化
+  visibilitychange_hide = 'visibilitychange_hide',
+  pagehide = 'pagehide', // 页面离开
+  unload = 'unload',
+  beforeunload = 'beforeunload',
+  nextVisit = 'nextVisit', // 下次访问
+  flush = 'flush', // 手动触发
 }
 
 export interface QueueItem {
@@ -39,6 +56,8 @@ export interface RetryQueueOptions {
   storagePrefix?: string;
   /** 是否启用调试日志 */
   debug?: boolean;
+  /** 页面离开前最多上报多少个请求（避免阻塞），默认 1 */
+  maxFlushOnUnload?: number;
 }
 
 export interface QueueStatus {
@@ -54,4 +73,3 @@ export interface QueueStatus {
     age: number;
   }[];
 }
-
